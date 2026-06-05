@@ -56,9 +56,10 @@ function RiskMeter({ risk }: { risk: string }) {
 function HomePage() {
   const [username, setUsername] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
+  const [provider, setProvider] = useState<"openai" | "anthropic" | "openrouter">("openai");
+  const [model, setModel] = useState("");
   const [consented, setConsented] = useState(false);
-  const runAnalysis = useMutation<[username: string, apiKey: string, provider: string], AuditResult>("runAnalysis");
+  const runAnalysis = useMutation<[username: string, apiKey: string, provider: string, model: string], AuditResult>("runAnalysis");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ function HomePage() {
     setRunning(true);
     setError(null);
     try {
-      const res = await runAnalysis(username.trim(), apiKey.trim(), provider);
+      const res = await runAnalysis(username.trim(), apiKey.trim(), provider, model.trim());
       setResult(res);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Analysis failed");
@@ -119,13 +120,25 @@ function HomePage() {
             />
             <select
               value={provider}
-              onChange={(e) => setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic")}
+              onChange={(e) => { setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic" | "openrouter"); setModel(""); }}
               className="border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
             >
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
+              <option value="openrouter">OpenRouter</option>
             </select>
           </div>
+          {provider === "openrouter" && (
+            <div className="mt-2">
+              <label className="mb-1 block text-sm font-medium text-neutral-400">Model</label>
+              <input
+                value={model}
+                onInput={(e) => setModel((e.target as HTMLInputElement).value)}
+                placeholder="openai/gpt-4o, anthropic/claude-sonnet-4, google/gemini-2.0-flash-001, ..."
+                className="w-full border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+              />
+            </div>
+          )}
         </div>
         <label className="mb-4 flex items-start gap-2 text-sm text-neutral-400">
           <input

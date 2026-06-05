@@ -22,19 +22,24 @@ export default capsule({
   },
 
   mutations: {
-    runAnalysis: mutation(async (ctx, username: string, apiKey: string, provider: string) => {
+    runAnalysis: mutation(async (ctx, username: string, apiKey: string, provider: string, model: string) => {
       if (!username?.trim()) throw new Error("Enter your Reddit username.");
-      if (!apiKey?.trim()) throw new Error("Paste your OpenAI or Anthropic API key.");
+      if (!apiKey?.trim()) throw new Error("Paste an API key.");
 
       const profile = await fetchRedditProfile(username.trim(), 300);
+
+      const isAnthropic = provider === "anthropic";
+      const isOpenRouter = provider === "openrouter";
 
       const result: AuditResult = await analyzeProfile(
         profile.username,
         profile.items,
         profile.profileUrl,
         {
-          provider: provider === "anthropic" ? "anthropic" : "openai",
+          provider: isAnthropic ? "anthropic" : "openai",
           apiKey: apiKey.trim(),
+          model: model?.trim() || undefined,
+          baseUrl: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
         },
       );
 
