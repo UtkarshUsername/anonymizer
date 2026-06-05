@@ -55,7 +55,9 @@ async function fetchAll<T extends { created_utc: number }>(
 ): Promise<T[]> {
   const out: T[] = [];
   let before: number | undefined;
-  while (out.length < max) {
+  const maxPages = Math.ceil(max / PAGE) + 1;
+  for (let i = 0; i < maxPages; i++) {
+    if (out.length >= max) break;
     const page = await fetchPage<T>(endpoint, author, before);
     if (page.length === 0) break;
     out.push(...page);
