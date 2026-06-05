@@ -1,4 +1,4 @@
-import { capsule, mutation, query, string, table, text } from "lakebed/server";
+import { capsule, mutation } from "lakebed/server";
 import { fetchRedditProfile } from "./reddit";
 import { analyzeProfile } from "./analyze";
 import type { AuditResult } from "../shared/types";
@@ -6,20 +6,7 @@ import type { AuditResult } from "../shared/types";
 export default capsule({
   name: "anonymizer",
 
-  schema: {
-    analyses: table({
-      redditUsername: string(),
-      resultJson: text(),
-      itemCount: string(),
-      overallRisk: string(),
-    }),
-  },
-
-  queries: {
-    myAnalyses: query((ctx) => {
-      return ctx.db.analyses.orderBy("createdAt", "desc").all();
-    }),
-  },
+  schema: {},
 
   mutations: {
     runAnalysis: mutation(async (ctx, username: string, apiKey: string, provider: string, model: string) => {
@@ -31,7 +18,7 @@ export default capsule({
       const isAnthropic = provider === "anthropic";
       const isOpenRouter = provider === "openrouter";
 
-      const result: AuditResult = await analyzeProfile(
+      return await analyzeProfile(
         profile.username,
         profile.items,
         profile.profileUrl,
@@ -42,15 +29,6 @@ export default capsule({
           baseUrl: isOpenRouter ? "https://openrouter.ai/api/v1" : undefined,
         },
       );
-
-      ctx.db.analyses.insert({
-        redditUsername: profile.username,
-        resultJson: JSON.stringify(result),
-        itemCount: String(result.itemCount),
-        overallRisk: result.overallRisk,
-      });
-
-      return result;
     }),
   },
 });
