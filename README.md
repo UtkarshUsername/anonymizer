@@ -1,4 +1,15 @@
-# deanonymizer
+# deanonymizer / anonymizer
+
+This repo has two tools that share the same analysis engine:
+
+- **deanonymizer** — CLI tool (original). Run it from the repo root with `npm run audit`.
+- **anonymizer** — Lakebed web app. A browser UI for non-technical users. Run it from `anonymizer/` with `npx lakebed dev`.
+
+Both use the same Reddit data fetching (Arctic Shift API), the same LLM analysis prompts, and the same regex extraction logic. The web app lets you bring your own API key and requires no server-side credentials.
+
+---
+
+## deanonymizer (CLI)
 
 deanonymizer is a command-line system for defensive OSINT exposure
 measurement. It estimates re-identification risk from public Reddit and Hacker
