@@ -12,9 +12,9 @@ See what your public Reddit history reveals about you and get actionable steps t
 3. Confirm it's your account
 4. Click **Scan My History**
 
-The server fetches your public Reddit comments/posts via the [Arctic Shift API](https://arctic-shift.photon-reddit.com), runs an LLM analysis to identify personal details, and returns a report with evidence links and remediation steps.
+Your public Reddit comments/posts are fetched via the [Arctic Shift API](https://arctic-shift.photon-reddit.com), analyzed by an LLM using the same prompt as the original deanonymizer, and you get a report with evidence links and remediation steps.
 
-No accounts, no OAuth, no data stored server-side beyond your session. You bring your own API key.
+Nothing is stored server-side. Your API key is sent once to the LLM provider and discarded. The report is returned directly to your browser.
 
 ## Run
 
@@ -26,53 +26,35 @@ Open http://localhost:3000
 
 ## Providers
 
-| Provider | API key format | Model |
-|----------|---------------|-------|
+| Provider | API key format | Model (default / example) |
+|----------|---------------|---------------------------|
 | OpenAI | `sk-...` | `gpt-4o-mini` (default) |
 | Anthropic | `sk-ant-...` | `claude-haiku-4-5` (default) |
-| OpenRouter | `sk-or-...` | Required — e.g. `openai/gpt-4o`, `anthropic/claude-sonnet-4` |
-
-## Architecture
-
-The analysis engine is ported from the original deanonymizer CLI:
-
-- **Data fetching**: Arctic Shift API — same as the original `src/sources/reddit.ts`
-- **Analysis prompt**: Same system prompt as the original `src/analyze.ts`
-- **Regex extraction**: Same email/handle detection as the original `src/extract.ts`
-- **LLM client**: Fetch-based (no SDKs), supports OpenAI / Anthropic / OpenRouter
+| OpenRouter | `sk-or-...` | Required — e.g. `openai/gpt-4o` |
 
 ## Files
 
 ```
 server/
-  index.ts    — Lakebed capsule: schema, mutation (runAnalysis), query (myAnalyses)
-  reddit.ts   — Reddit data fetcher via Arctic Shift API
-  analyze.ts  — LLM analysis orchestrator (same prompt as deanonymizer)
-  llm.ts      — Fetch-based LLM client
+  index.ts   — Lakebed capsule
+  reddit.ts  — Reddit data fetcher
+  analyze.ts — LLM analysis orchestrator
+  llm.ts     — Fetch-based LLM client
 client/
-  index.tsx   — Preact UI: input form + results dashboard
+  index.tsx  — Preact UI
 shared/
-  types.ts    — Types from deanonymizer
-  extract.ts  — Regex identifier extraction
-```
-
-## Deploy
-
-```sh
-npx lakebed deploy
+  types.ts   — Types
+  extract.ts — Regex identifier extraction
 ```
 
 ## Research basis
 
 The analysis method follows the inference setting discussed in:
 
-- [arXiv:2602.16800](https://arxiv.org/abs/2602.16800) — Deanonymization attack paper
-
-Operational premise: low-entropy disclosures that appear non-identifying in isolation may become identifying under cross-post aggregation.
+- [arXiv:2602.16800](https://arxiv.org/abs/2602.16800)
 
 ## Limitations
 
-- Findings are probabilistic and should not be interpreted as definitive identity proof
-- Recall is upper-bounded by source completeness (Arctic Shift archive coverage)
-- Confidence calibration depends on evidence density and artifact quality
-- Only Reddit is supported (the original CLI also supports HN, GitHub, Stack Overflow)
+- Findings are probabilistic, not definitive identity proof
+- Only Reddit is supported
+- Confidence depends on evidence density
