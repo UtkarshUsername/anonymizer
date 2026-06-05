@@ -2,7 +2,7 @@
 
 deanonymizer is a command-line system for defensive OSINT exposure
 measurement. It estimates re-identification risk from public Reddit and Hacker
-News corpora by aggregating weak signals, scoring identity hypotheses, and
+News corpora (now supports web, GitHub & StackOverflow too!) by aggregating weak signals, scoring identity hypotheses, and
 emitting evidence-linked remediation guidance.
 
 ## Research basis
