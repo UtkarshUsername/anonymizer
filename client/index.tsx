@@ -93,7 +93,7 @@ function HomePage() {
         </h1>
         <p className="mx-auto max-w-lg text-neutral-400">
           See what your Reddit history reveals and learn how to edit or delete identifying posts.
-          You bring your own LLM API key — nothing is stored server-side beyond your report.
+          You bring your own LLM API key — nothing is stored server-side.
         </p>
       </div>
 
