@@ -1,42 +1,64 @@
 # anonymizer
 
-Privacy exposure audit tool — ethical mirror of the deanonymizer research.
-A web app built with Lakebed.
+Privacy exposure audit tool for Reddit — the ethical mirror of the deanonymizer research.
+Built with Lakebed.
 
-## Setup
+See what your public Reddit history reveals about you and get actionable steps to edit or delete identifying posts.
 
-Copy `.env.lakebed.server` and fill in your credentials:
+## How it works
 
-```
-# Required: LLM API key (OpenAI or Anthropic)
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+1. Enter your Reddit username
+2. Paste your LLM API key (OpenAI, Anthropic, or OpenRouter)
+3. Confirm it's your account
+4. Click **Scan My History**
 
-# Required: Reddit OAuth app
-# Create at https://www.reddit.com/prefs/apps (script type)
-# Redirect URI: http://localhost:3000/api/reddit/callback
-REDDIT_CLIENT_ID=...
-REDDIT_CLIENT_SECRET=...
-```
+The server fetches your public Reddit comments/posts via the Arctic Shift API (same as the original deanonymizer), runs the same LLM-based analysis prompt to identify personal details, and returns a report with evidence links and remediation steps.
+
+No accounts, no OAuth, no data stored server-side beyond your session. You bring your own API key.
 
 ## Run
 
 ```sh
+cd anonymizer
 npx lakebed dev
 ```
 
 Open http://localhost:3000
 
-## Flow
+## Providers
 
-1. Sign in with Google (app identity)
-2. Connect your Reddit account (Reddit OAuth)
-3. Click "Scan My History" to analyze your public Reddit footprint
-4. Review findings with remediation steps
+| Provider | API key format | Model (default / example) |
+|----------|---------------|---------------------------|
+| OpenAI | `sk-...` | `gpt-4o-mini` (default) |
+| Anthropic | `sk-ant-...` | `claude-haiku-4-5` (default) |
+| OpenRouter | `sk-or-...` | Required — e.g. `openai/gpt-4o`, `anthropic/claude-sonnet-4` |
 
 ## Architecture
 
-Reuses the same analysis methods as the parent `deanonymizer` project:
-- Arctic Shift API for Reddit data (same as `src/sources/reddit.ts`)
-- Same LLM analysis prompts (same as `src/analyze.ts`)
-- Same regex extraction logic (same as `src/extract.ts`)
+Reuses the same methods from the parent `deanonymizer` project:
+
+- **Data fetching**: Arctic Shift API (`src/sources/reddit.ts`)
+- **Analysis prompt**: Same system prompt as `src/analyze.ts`
+- **Regex extraction**: Same email/handle detection as `src/extract.ts`
+- **LLM client**: Fetch-based (no SDKs), supports OpenAI / Anthropic / OpenRouter
+
+## Files
+
+```
+server/
+  index.ts    — capsule: schema, mutation (runAnalysis)
+  reddit.ts   — Reddit data fetcher via Arctic Shift API
+  analyze.ts  — LLM analysis orchestrator (same prompt as deanonymizer)
+  llm.ts      — Fetch-based LLM client
+client/
+  index.tsx   — Preact UI: input form + results dashboard
+shared/
+  types.ts    — Types from deanonymizer
+  extract.ts  — Regex identifier extraction
+```
+
+## Deploy
+
+```sh
+npx lakebed deploy
+```
