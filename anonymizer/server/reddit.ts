@@ -1,4 +1,5 @@
-// Reddit OAuth and data fetching — same Arctic Shift API as the deanonymizer
+// Reddit data fetcher — same Arctic Shift API as the deanonymizer
+// No auth needed; uses the public API.
 
 import type { Item, Profile } from "../shared/types";
 
@@ -114,75 +115,4 @@ export async function fetchRedditProfile(username: string, max: number): Promise
     firstUtc: items.length ? items[items.length - 1].createdUtc : undefined,
     lastUtc: items.length ? items[0].createdUtc : undefined,
   };
-}
-
-// Reddit OAuth helpers
-
-export function getRedditAuthUrl(state: string, redirectUri: string, clientId: string): string {
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: "code",
-    state,
-    redirect_uri: redirectUri,
-    duration: "permanent",
-    scope: "identity",
-  });
-  return `https://www.reddit.com/api/v1/authorize?${params}`;
-}
-
-export async function exchangeRedditCode(
-  code: string,
-  redirectUri: string,
-  clientId: string,
-  clientSecret: string,
-): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    redirect_uri: redirectUri,
-  });
-
-  const res = await fetch("https://www.reddit.com/api/v1/access_token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": USER_AGENT,
-    },
-    body,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Reddit token exchange failed: ${res.status} ${await res.text()}`);
-  }
-
-  const data = (await res.json()) as {
-    access_token: string;
-    refresh_token?: string;
-    expires_in: number;
-  };
-
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token ?? "",
-    expiresIn: data.expires_in,
-  };
-}
-
-export async function verifyRedditIdentity(
-  accessToken: string,
-): Promise<{ name: string }> {
-  const res = await fetch("https://oauth.reddit.com/api/v1/me", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": USER_AGENT,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Reddit identity check failed: ${res.status} ${await res.text()}`);
-  }
-
-  const data = (await res.json()) as { name: string };
-  return { name: data.name };
 }

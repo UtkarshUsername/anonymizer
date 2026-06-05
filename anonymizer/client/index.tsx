@@ -1,5 +1,5 @@
-import { Route, Router, Routes, useMutation, useQuery } from "lakebed/client";
-import { useState, useEffect } from "preact/hooks";
+import { Route, Router, Routes, useMutation } from "lakebed/client";
+import { useState } from "preact/hooks";
 import type { AuditResult } from "../shared/types";
 
 const RISK_COLORS: Record<string, string> = {
@@ -53,105 +53,30 @@ function RiskMeter({ risk }: { risk: string }) {
   );
 }
 
-function LandingPage() {
-  return (
-    <div className="mx-auto flex max-w-2xl flex-col items-center px-6 py-16 text-center">
-      <div className="mb-4 inline-block rounded-full border border-neutral-700 px-4 py-1.5 text-xs font-medium tracking-wider text-neutral-400 uppercase">
-        Ethical Privacy Tool
-      </div>
-      <h1 className="mb-4 text-5xl font-bold tracking-tight">
-        <span className="text-white">anony</span><span className="text-neutral-500">mizer</span>
-      </h1>
-      <p className="mb-8 max-w-lg text-lg leading-relaxed text-neutral-400">
-        See what your Reddit history reveals about you — and learn exactly what to edit or delete to protect your privacy.
-        Built for journalists, activists, and anyone who values their anonymity.
-      </p>
-      <button
-        onClick={() => void connectReddit()}
-        className="rounded bg-orange-600 px-8 py-3 text-lg font-medium text-white hover:bg-orange-500"
-      >
-        Connect with Reddit
-      </button>
-      <p className="mt-3 text-xs text-neutral-600">
-        You'll authorize via Reddit OAuth. Only your own account can be scanned.
-      </p>
-      <div className="mt-16 grid grid-cols-1 gap-6 text-left sm:grid-cols-3">
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-5">
-          <div className="mb-2 text-2xl">🔍</div>
-          <h3 className="mb-1 font-semibold text-white">Scan</h3>
-          <p className="text-sm text-neutral-400">Analyzes your public Reddit history using the same methods as the deanonymizer research.</p>
-        </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-5">
-          <div className="mb-2 text-2xl">⚠️</div>
-          <h3 className="mb-1 font-semibold text-white">Identify</h3>
-          <p className="text-sm text-neutral-400">Flags personal details, location, employer, and other revealing signals in your posts.</p>
-        </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-5">
-          <div className="mb-2 text-2xl">🛡️</div>
-          <h3 className="mb-1 font-semibold text-white">Remediate</h3>
-          <p className="text-sm text-neutral-400">Get concrete, actionable steps to scrub your identifying footprint.</p>
-        </div>
-      </div>
-      <div className="mt-12 rounded-lg border border-neutral-800 bg-neutral-950/50 p-6 text-left">
-        <p className="text-sm leading-relaxed text-neutral-500">
-          <span className="font-semibold text-neutral-300">How it works:</span> This tool is the ethical mirror of the
-          deanonymization research in{" "}
-          <a href="https://arxiv.org/abs/2602.16800" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">
-            arXiv:2602.16800
-          </a>.
-          You log in with Reddit so only your own account is analyzed. You bring your own LLM API key —
-          no data is stored server-side beyond your analysis report.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-async function connectReddit() {
-  const res = await fetch("/api/reddit/oauth-url");
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown" }));
-    alert("Failed to connect: " + (err.error || res.statusText));
-    return;
-  }
-  const data = (await res.json()) as { url: string };
-  window.location.href = data.url;
-}
-
-function DashboardPage() {
-  const params = new URLSearchParams(window.location.search);
-  const redditUser = params.get("user") || "";
+function HomePage() {
+  const [username, setUsername] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
+  const [consented, setConsented] = useState(false);
   const runAnalysis = useMutation<[username: string, apiKey: string, provider: string], AuditResult>("runAnalysis");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleScan() {
+    if (!username.trim()) { setError("Enter your Reddit username."); return; }
     if (!apiKey.trim()) { setError("Paste your API key."); return; }
+    if (!consented) { setError("Confirm this is your account."); return; }
     setRunning(true);
     setError(null);
     try {
-      const res = await runAnalysis(redditUser, apiKey.trim(), provider);
+      const res = await runAnalysis(username.trim(), apiKey.trim(), provider);
       setResult(res);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Analysis failed");
     } finally {
       setRunning(false);
     }
-  }
-
-  if (!redditUser) {
-    return (
-      <div className="mx-auto max-w-lg px-6 py-16 text-center">
-        <h2 className="mb-4 text-2xl font-bold text-white">No Account Connected</h2>
-        <p className="mb-6 text-neutral-400">Connect your Reddit account first.</p>
-        <button onClick={() => void connectReddit()} className="rounded bg-orange-600 px-6 py-2.5 font-medium text-white hover:bg-orange-500">
-          Connect with Reddit
-        </button>
-      </div>
-    );
   }
 
   const findings = result?.findings ?? [];
@@ -161,50 +86,69 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6 rounded-lg border border-orange-800 bg-orange-950/30 p-4">
-        <p className="text-sm text-orange-300">
-          Connected as{" "}
-          <a href={`https://reddit.com/u/${encodeURIComponent(redditUser)}`} target="_blank" rel="noopener noreferrer" className="font-mono underline">
-            u/{redditUser}
-          </a>
+      <div className="mb-8 text-center">
+        <h1 className="mb-2 text-5xl font-bold tracking-tight">
+          <span className="text-white">anony</span><span className="text-neutral-500">mizer</span>
+        </h1>
+        <p className="mx-auto max-w-lg text-neutral-400">
+          See what your Reddit history reveals and learn how to edit or delete identifying posts.
+          You bring your own LLM API key — nothing is stored server-side beyond your report.
         </p>
       </div>
 
-      <div className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-800 bg-neutral-950 p-4">
-        <div className="min-w-0 flex-1">
-          <label className="mb-1 block text-xs font-medium text-neutral-500">API Key (OpenAI or Anthropic)</label>
+      {/* Input form */}
+      <div className="mb-8 rounded-lg border border-neutral-800 bg-neutral-950 p-6">
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-neutral-400">Reddit username</label>
           <input
-            type="password"
-            value={apiKey}
-            onInput={(e) => setApiKey((e.target as HTMLInputElement).value)}
-            placeholder="sk-... or sk-ant-..."
-            className="w-full border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+            value={username}
+            onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
+            placeholder="u/your_username"
+            className="w-full border border-neutral-700 bg-black px-3 py-2 text-white outline-none focus:border-white"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-500">Provider</label>
-          <select
-            value={provider}
-            onChange={(e) => setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic")}
-            className="border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
-          >
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-neutral-400">API key</label>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={apiKey}
+              onInput={(e) => setApiKey((e.target as HTMLInputElement).value)}
+              placeholder="sk-... or sk-ant-..."
+              className="min-w-0 flex-1 border border-neutral-700 bg-black px-3 py-2 text-white outline-none focus:border-white"
+            />
+            <select
+              value={provider}
+              onChange={(e) => setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic")}
+              className="border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
         </div>
+        <label className="mb-4 flex items-start gap-2 text-sm text-neutral-400">
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={() => setConsented(!consented)}
+            className="mt-0.5 shrink-0"
+          />
+          <span>I confirm this is my Reddit account. I am only scanning my own public history.</span>
+        </label>
         <button
           onClick={() => void handleScan()}
           disabled={running}
-          className="rounded bg-orange-600 px-5 py-2 font-medium text-white hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded bg-orange-600 py-2.5 font-medium text-white hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {running ? "Scanning..." : result ? "Re-scan" : "Scan My History"}
+          {running ? "Scanning..." : "Scan My History"}
         </button>
+        {error && (
+          <div className="mt-3 text-sm text-red-400">{error}</div>
+        )}
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-800 bg-red-950/50 p-4 text-sm text-red-400">{error}</div>
-      )}
-
+      {/* Loading */}
       {running && (
         <div className="mb-8 rounded-lg border border-neutral-800 bg-neutral-950 p-8 text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-2 border-neutral-600 border-t-white" />
@@ -215,8 +159,10 @@ function DashboardPage() {
         </div>
       )}
 
+      {/* Results */}
       {result && !running && (
         <>
+          {/* Risk + Summary */}
           <div className={`mb-6 rounded-lg border p-5 ${RISK_COLORS[result.overallRisk] || RISK_COLORS.low}`}>
             <div className="mb-3"><RiskMeter risk={result.overallRisk} /></div>
             <p className="text-sm leading-relaxed opacity-90">{result.summary}</p>
@@ -228,6 +174,7 @@ function DashboardPage() {
             </div>
           </div>
 
+          {/* Identity */}
           <div className="mb-6 rounded-lg border border-neutral-800 bg-neutral-950 p-5">
             <h2 className="mb-3 text-sm font-semibold tracking-wider text-neutral-500 uppercase">Identified As</h2>
             <p className="text-lg font-bold text-white">{result.identity.exactUser}</p>
@@ -241,6 +188,7 @@ function DashboardPage() {
             )}
           </div>
 
+          {/* Direct Identifiers */}
           {result.directIdentifiers && (result.directIdentifiers.emails.length > 0 || result.directIdentifiers.socialHandles.length > 0) && (
             <div className="mb-6 rounded-lg border border-red-800 bg-red-950/30 p-5">
               <h2 className="mb-3 text-sm font-semibold tracking-wider text-red-400 uppercase">Direct Identifiers — Scrub These First</h2>
@@ -267,6 +215,7 @@ function DashboardPage() {
             </div>
           )}
 
+          {/* Findings */}
           {sorted.length === 0 ? (
             <div className="rounded-lg border border-green-800 bg-green-950/30 p-5 text-center text-green-400">
               No identifying signals found in your analyzed history.
@@ -349,14 +298,8 @@ export function App() {
     <Router>
       <div className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-5xl">
-          <div className="flex items-center border-b border-neutral-800 px-6 py-3">
-            <a href="/" className="font-medium tracking-tight text-white">
-              <span className="text-orange-500">anony</span>mizer
-            </a>
-          </div>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="*" element={
               <div className="px-6 py-16 text-center">
                 <h1 className="mb-4 text-4xl font-bold">Not Found</h1>
