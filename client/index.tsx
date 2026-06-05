@@ -120,7 +120,13 @@ function HomePage() {
             />
             <select
               value={provider}
-              onChange={(e) => { setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic" | "openrouter"); setModel(""); }}
+              onChange={(e) => {
+                const p = (e.target as HTMLSelectElement).value as "openai" | "anthropic" | "openrouter";
+                setProvider(p);
+                if (p === "openai") setModel("gpt-4o-mini");
+                else if (p === "anthropic") setModel("claude-haiku-4-5");
+                else setModel("");
+              }}
               className="border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
             >
               <option value="openai">OpenAI</option>
@@ -128,17 +134,19 @@ function HomePage() {
               <option value="openrouter">OpenRouter</option>
             </select>
           </div>
-          {provider === "openrouter" && (
-            <div className="mt-2">
-              <label className="mb-1 block text-sm font-medium text-neutral-400">Model</label>
-              <input
-                value={model}
-                onInput={(e) => setModel((e.target as HTMLInputElement).value)}
-                placeholder="openai/gpt-4o, anthropic/claude-sonnet-4, google/gemini-2.0-flash-001, ..."
-                className="w-full border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
-              />
-            </div>
-          )}
+          <div className="mt-2">
+            <label className="mb-1 block text-sm font-medium text-neutral-400">Model</label>
+            <input
+              value={model}
+              onInput={(e) => setModel((e.target as HTMLInputElement).value)}
+              placeholder={
+                provider === "openai" ? "gpt-4o-mini (default), gpt-4o, gpt-4.1, ..."
+                : provider === "anthropic" ? "claude-haiku-4-5 (default), claude-sonnet-4, claude-3-opus, ..."
+                : "openai/gpt-4o, anthropic/claude-sonnet-4, google/gemini-2.0-flash-001, ..."
+              }
+              className="w-full border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+            />
+          </div>
         </div>
         <label className="mb-4 flex items-start gap-2 text-sm text-neutral-400">
           <input
