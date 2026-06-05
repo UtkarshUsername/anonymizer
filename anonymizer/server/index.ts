@@ -7,12 +7,6 @@ export default capsule({
   name: "anonymizer",
 
   schema: {
-    connections: table({
-      redditUsername: string(),
-      accessToken: text(),
-      refreshToken: text(),
-      tokenExpiresAt: string(),
-    }),
     analyses: table({
       redditUsername: string(),
       resultJson: text(),
@@ -22,53 +16,17 @@ export default capsule({
   },
 
   queries: {
-    myConnection: query((ctx) => {
-      return ctx.db.connections
-        .where("ownerId", ctx.auth.userId)
-        .orderBy("createdAt", "desc")
-        .first();
-    }),
-
-    myLatestAnalysis: query((ctx) => {
-      return ctx.db.analyses
-        .where("ownerId", ctx.auth.userId)
-        .orderBy("createdAt", "desc")
-        .first();
+    myAnalyses: query((ctx) => {
+      return ctx.db.analyses.orderBy("createdAt", "desc").all();
     }),
   },
 
   mutations: {
-    connectReddit: mutation((ctx, dataJson: string) => {
-      const data = JSON.parse(dataJson) as {
-        redditUsername: string;
-        accessToken: string;
-        refreshToken: string;
-        tokenExpiresAt: number;
-      };
+    runAnalysis: mutation(async (ctx, username: string, apiKey: string, provider: string) => {
+      if (!username?.trim()) throw new Error("Enter your Reddit username.");
+      if (!apiKey?.trim()) throw new Error("Paste your OpenAI or Anthropic API key.");
 
-      ctx.db.connections.insert({
-        redditUsername: data.redditUsername,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        tokenExpiresAt: String(data.tokenExpiresAt),
-        ownerId: ctx.auth.userId,
-      });
-    }),
-
-    runAnalysis: mutation(async (ctx, apiKey: string, provider: string) => {
-      const connection = ctx.db.connections
-        .where("ownerId", ctx.auth.userId)
-        .orderBy("createdAt", "desc")
-        .first();
-
-      if (!connection) {
-        throw new Error("No Reddit account connected. Connect your Reddit account first.");
-      }
-      if (!apiKey) {
-        throw new Error("API key is required. Paste your OpenAI or Anthropic key.");
-      }
-
-      const profile = await fetchRedditProfile(connection.redditUsername, 300);
+      const profile = await fetchRedditProfile(username.trim(), 300);
 
       const result: AuditResult = await analyzeProfile(
         profile.username,
@@ -76,16 +34,15 @@ export default capsule({
         profile.profileUrl,
         {
           provider: provider === "anthropic" ? "anthropic" : "openai",
-          apiKey,
+          apiKey: apiKey.trim(),
         },
       );
 
       ctx.db.analyses.insert({
-        redditUsername: connection.redditUsername,
+        redditUsername: profile.username,
         resultJson: JSON.stringify(result),
         itemCount: String(result.itemCount),
         overallRisk: result.overallRisk,
-        ownerId: ctx.auth.userId,
       });
 
       return result;
@@ -98,12 +55,12 @@ export default capsule({
       (ctx, req) => {
         const clientId = ctx.env.REDDIT_CLIENT_ID;
         if (!clientId) {
-          return json({ error: "Reddit OAuth is not configured. Set REDDIT_CLIENT_ID in .env.lakebed.server" }, { status: 500 });
+          return json({ error: "Reddit OAuth not configured" }, { status: 500 });
         }
 
         const parsedUrl = new URL(req.url);
         const redirectUri = `${parsedUrl.origin}/api/reddit/callback`;
-        const state = `${Math.random().toString(36).slice(2)}:${Date.now()}`;
+        const state = Math.random().toString(36).slice(2);
         const authUrl = getRedditAuthUrl(state, redirectUri, clientId);
 
         return json({ url: authUrl });
@@ -118,7 +75,7 @@ export default capsule({
         const state = parsedUrl.searchParams.get("state");
 
         if (!code || !state) {
-          return json({ error: "Missing code or state parameter" }, { status: 400 });
+          return json({ error: "Missing code or state" }, { status: 400 });
         }
 
         const clientId = ctx.env.REDDIT_CLIENT_ID;
@@ -127,48 +84,18 @@ export default capsule({
           return json({ error: "Reddit OAuth not configured" }, { status: 500 });
         }
 
-        const redirectUri = `${parsedUrl.origin}/api/reddit/callback`;
-
         try {
-          const tokenData = await exchangeRedditCode(code, redirectUri, clientId, clientSecret);
+          const tokenData = await exchangeRedditCode(
+            code, `${parsedUrl.origin}/api/reddit/callback`, clientId, clientSecret,
+          );
           const identity = await verifyRedditIdentity(tokenData.accessToken);
 
-          const now = Math.floor(Date.now() / 1000);
-          const expiresAt = now + tokenData.expiresIn;
-
-          const resultData = JSON.stringify({
-            redditUsername: identity.name,
-            accessToken: tokenData.accessToken,
-            refreshToken: tokenData.refreshToken,
-            tokenExpiresAt: expiresAt,
-          });
-
-          const encoded = encodeURIComponent(resultData);
-          return new Response(null, {
-            status: 302,
-            headers: { Location: `${parsedUrl.origin}/connect?data=${encoded}` },
-          });
+          return Response.redirect(
+            `${parsedUrl.origin}/dashboard?user=${encodeURIComponent(identity.name)}`,
+            302,
+          );
         } catch (err) {
           const msg = err instanceof Error ? err.message : "OAuth failed";
-          return json({ error: msg }, { status: 500 });
-        }
-      },
-    ),
-
-    redditProfile: endpoint(
-      { method: "GET", path: "/api/reddit/profile" },
-      async (ctx, req) => {
-        const url = new URL(req.url);
-        const username = url.searchParams.get("username");
-        if (!username) {
-          return json({ error: "Missing username parameter" }, { status: 400 });
-        }
-
-        try {
-          const profile = await fetchRedditProfile(username, 300);
-          return json(profile);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Fetch failed";
           return json({ error: msg }, { status: 500 });
         }
       },
