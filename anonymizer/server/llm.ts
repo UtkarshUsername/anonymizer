@@ -9,16 +9,14 @@ export interface LLMCompleteParams {
 }
 
 export async function completeWithOpenAI(
-  params: LLMCompleteParams,
-  env: Record<string, string | undefined>,
+  apiKey: string,
+  model?: string,
+  baseUrl?: string,
+  params?: LLMCompleteParams,
 ): Promise<string> {
-  const apiKey = env.OPENAI_API_KEY;
-  const baseUrl = (env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
-  const model = env.OPENAI_MODEL || "gpt-4o-mini";
-
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY environment variable is required");
-  }
+  if (!params) throw new Error("Missing completion params");
+  const resolvedModel = model || "gpt-4o-mini";
+  const resolvedBase = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
 
   const messages: Array<{ role: string; content: string }> = [];
   if (params.system) {
@@ -27,7 +25,7 @@ export async function completeWithOpenAI(
   messages.push({ role: "user", content: params.user });
 
   const body: Record<string, unknown> = {
-    model,
+    model: resolvedModel,
     messages,
     max_tokens: params.maxTokens,
   };
@@ -35,7 +33,7 @@ export async function completeWithOpenAI(
     body.response_format = { type: "json_object" };
   }
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
+  const res = await fetch(`${resolvedBase}/chat/completions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -56,21 +54,18 @@ export async function completeWithOpenAI(
 }
 
 export async function completeWithAnthropic(
-  params: LLMCompleteParams,
-  env: Record<string, string | undefined>,
+  apiKey: string,
+  model?: string,
+  params?: LLMCompleteParams,
 ): Promise<string> {
-  const apiKey = env.ANTHROPIC_API_KEY;
-  const model = env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY environment variable is required");
-  }
+  if (!params) throw new Error("Missing completion params");
+  const resolvedModel = model || "claude-haiku-4-5";
 
   const messages: Array<{ role: string; content: string }> = [];
   messages.push({ role: "user", content: params.user });
 
   const body: Record<string, unknown> = {
-    model,
+    model: resolvedModel,
     max_tokens: params.maxTokens,
     messages,
   };

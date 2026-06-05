@@ -92,7 +92,12 @@ export async function analyzeProfile(
   profileUsername: string,
   items: Item[],
   profileUrl: string,
-  env: Record<string, string | undefined>,
+  opts: {
+    provider: "openai" | "anthropic";
+    apiKey: string;
+    model?: string;
+    baseUrl?: string;
+  },
 ): Promise<AuditResult> {
   const maxChars = 120000;
 
@@ -111,23 +116,19 @@ ${transcript}
 
 ${SCHEMA_HINT}`;
 
-  const hasAnthropic = !!env.ANTHROPIC_API_KEY;
-  const hasOpenAI = !!env.OPENAI_API_KEY;
-
   let rawText: string;
-  if (hasAnthropic) {
+  if (opts.provider === "anthropic") {
     rawText = await completeWithAnthropic(
+      opts.apiKey,
+      opts.model,
       { system: SYSTEM, user: userMsg, maxTokens: 4000, json: true },
-      env,
-    );
-  } else if (hasOpenAI) {
-    rawText = await completeWithOpenAI(
-      { system: SYSTEM, user: userMsg, maxTokens: 4000, json: true },
-      env,
     );
   } else {
-    throw new Error(
-      "No LLM API key configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env.lakebed.server",
+    rawText = await completeWithOpenAI(
+      opts.apiKey,
+      opts.model,
+      opts.baseUrl,
+      { system: SYSTEM, user: userMsg, maxTokens: 4000, json: true },
     );
   }
 

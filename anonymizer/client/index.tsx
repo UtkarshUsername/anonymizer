@@ -104,6 +104,7 @@ function LandingPage() {
       <p className="mb-8 max-w-lg text-lg leading-relaxed text-neutral-400">
         See what your Reddit history reveals about you — and learn exactly what to edit or delete to protect your privacy.
         Built for journalists, activists, and anyone who values their anonymity.
+        Bring your own LLM API key — no data leaves your session.
       </p>
       <ConnectSection />
       <div className="mt-16 grid grid-cols-1 gap-6 text-left sm:grid-cols-3">
@@ -243,7 +244,9 @@ function DashboardPage() {
     overallRisk: string;
     createdAt: string;
   } | null>("myLatestAnalysis");
-  const runAnalysis = useMutation<[], AuditResult>("runAnalysis");
+  const runAnalysis = useMutation<[apiKey: string, provider: string], AuditResult>("runAnalysis");
+  const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -257,10 +260,14 @@ function DashboardPage() {
   }, [analysisQuery]);
 
   async function handleRunAnalysis() {
+    if (!apiKey.trim()) {
+      setError("Paste your OpenAI or Anthropic API key first.");
+      return;
+    }
     setRunning(true);
     setError(null);
     try {
-      const res = await runAnalysis();
+      const res = await runAnalysis(apiKey.trim(), provider);
       setResult(res);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Analysis failed";
@@ -287,20 +294,45 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-neutral-500">
-            Reddit: <span className="font-mono text-neutral-300">{connection.redditUsername}</span>
-          </p>
+      <div className="mb-8">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+            <p className="text-sm text-neutral-500">
+              Reddit: <span className="font-mono text-neutral-300">{connection.redditUsername}</span>
+            </p>
+          </div>
         </div>
-        <button
-          onClick={() => void handleRunAnalysis()}
-          disabled={running}
-          className="rounded bg-orange-600 px-5 py-2 font-medium text-white hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {running ? "Scanning..." : result ? "Re-scan" : "Scan My History"}
-        </button>
+        <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+          <div className="min-w-0 flex-1">
+            <label className="mb-1 block text-xs font-medium text-neutral-500">API Key (OpenAI or Anthropic)</label>
+            <input
+              type="password"
+              value={apiKey}
+              onInput={(e) => setApiKey((e.target as HTMLInputElement).value)}
+              placeholder="sk-... or sk-ant-..."
+              className="w-full border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Provider</label>
+            <select
+              value={provider}
+              onChange={(e) => setProvider((e.target as HTMLSelectElement).value as "openai" | "anthropic")}
+              className="border border-neutral-700 bg-black px-3 py-2 text-sm text-white outline-none focus:border-white"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
+          <button
+            onClick={() => void handleRunAnalysis()}
+            disabled={running}
+            className="rounded bg-orange-600 px-5 py-2 font-medium text-white hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {running ? "Scanning..." : result ? "Re-scan" : "Scan My History"}
+          </button>
+        </div>
       </div>
 
       {error && (

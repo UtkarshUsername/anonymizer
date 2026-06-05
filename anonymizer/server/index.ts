@@ -55,7 +55,7 @@ export default capsule({
       });
     }),
 
-    runAnalysis: mutation(async (ctx) => {
+    runAnalysis: mutation(async (ctx, apiKey: string, provider: string) => {
       const connection = ctx.db.connections
         .where("ownerId", ctx.auth.userId)
         .orderBy("createdAt", "desc")
@@ -64,6 +64,9 @@ export default capsule({
       if (!connection) {
         throw new Error("No Reddit account connected. Connect your Reddit account first.");
       }
+      if (!apiKey) {
+        throw new Error("API key is required. Paste your OpenAI or Anthropic key.");
+      }
 
       const profile = await fetchRedditProfile(connection.redditUsername, 300);
 
@@ -71,7 +74,10 @@ export default capsule({
         profile.username,
         profile.items,
         profile.profileUrl,
-        ctx.env,
+        {
+          provider: provider === "anthropic" ? "anthropic" : "openai",
+          apiKey,
+        },
       );
 
       ctx.db.analyses.insert({
