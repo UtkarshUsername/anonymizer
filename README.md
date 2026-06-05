@@ -51,10 +51,12 @@ shared/
 
 The analysis method follows the inference setting discussed in:
 
-- [arXiv:2602.16800](https://arxiv.org/abs/2602.16800)
+- [arXiv:2602.16800](https://arxiv.org/abs/2602.16800) — Deanonymization attack paper
+
+Operational premise: low-entropy disclosures that appear non-identifying in isolation may become identifying under cross-post aggregation.
 
 ## Limitations
 
-- Findings are probabilistic, not definitive identity proof
-- Only Reddit is supported
-- Confidence depends on evidence density
+- Findings are probabilistic and should not be interpreted as definitive identity proof
+- Recall is upper-bounded by source completeness (Arctic Shift archive coverage)
+- Confidence calibration depends on evidence density and artifact quality
